@@ -129,15 +129,14 @@ function App() {
 
       const nextThreshHold = fixedValues.map(fixedInfo => ({
         ...fixedInfo,
-        delta: fixedInfo.cells.filter(cell => !cell.fixed).length > 0 ? (fixedInfo.total - fixedInfo.cells.reduce((p,c) => c.fixed ? p + c.cell : p, 0)) / fixedInfo.cells.filter(cell => !cell.fixed).length : 0,
-        deltaRemainder: fixedInfo.cells.filter(cell => !cell.fixed).length > 0 ? (fixedInfo.total - fixedInfo.cells.reduce((p,c) => c.fixed ? p + c.cell : p, 0)) % fixedInfo.cells.filter(cell => !cell.fixed).length : 0,
+        delta: fixedInfo.cells.filter(cell => !cell.fixed).length > 0 ? (fixedInfo.total - fixedInfo.cells.reduce((p,c) => p + c.cell, 0)) / fixedInfo.cells.filter(cell => !cell.fixed).length : 0,
+        deltaRemainder: fixedInfo.cells.filter(cell => !cell.fixed).length > 0 ? (fixedInfo.total - fixedInfo.cells.reduce((p,c) =>  p + c.cell, 0)) % fixedInfo.cells.filter(cell => !cell.fixed).length : 0,
       })).reduce((p,c) => c.delta < p.delta ? c : p, { delta: Number.POSITIVE_INFINITY, i: -1, j: -1, total: -1, cells: [], deltaRemainder: 0 });
 
+      if (nextThreshHold.delta < 0) throw { msg: "Impossible split", nextThreshHold};
+
       const newFixedCells = fixedValues.filter(fixedInfo => fixedInfo.i === nextThreshHold.i && fixedInfo.j === nextThreshHold.j)[0].cells;
-      fixedValues = fixedValues.filter(fixedInfo => fixedInfo.i !== nextThreshHold.i || fixedInfo.j !== nextThreshHold.j).map(fixedInfo => ({
-        ...fixedInfo,
-        total: fixedInfo.cells.reduce((p, c) => p + c.cell, 0),
-      }));
+      fixedValues = fixedValues.filter(fixedInfo => fixedInfo.i !== nextThreshHold.i || fixedInfo.j !== nextThreshHold.j);
       let buf = 0;
       tableCopy = tableCopy.map((row, y) => row.map((cell, x) => {
         if (editableCells.filter(({i,j}) => i === y && j === x).length === 0) return cell;
@@ -150,7 +149,7 @@ function App() {
       flatCells = tableCopy.flatMap((row, i) => row.flatMap((cell, j) => ({ cell, i, j })));
     }
     const newTotal = flatCells.reduce((p,c) => p + c.cell, 0);
-    if (editableCells.length === 0 && newTotal != total) throw "Impossible split";
+    if (editableCells.length === 0 && newTotal != total) throw { msg: "Impossible split", editableCells };
     const lastDelta = (total - newTotal) / editableCells.length;
     const lastDeltaRemainder  = (total - newTotal) % editableCells.length;
     let buf = 0;
