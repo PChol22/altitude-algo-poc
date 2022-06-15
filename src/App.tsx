@@ -47,7 +47,7 @@ function App() {
 
   const checkConsistency = () => {
     const expectedTotalsCol = table.map(row => row.reduce((prv, cur) => prv + cur), 0);
-    const expectedTotalsRow = table.reduce((prv, cur) => add(prv, cur), initialTotalsRow);
+    const expectedTotalsRow = table.reduce((prv, cur) => add(prv, cur), new Array(table[0].length).fill(0));
     const expectedTotal1 = totalsRow.reduce((p,c) => p+c, 0);
     const expectedTotal2 = totalsCol.reduce((p,c) => p+c, 0);
     setConsistency(equals(expectedTotalsCol, totalsCol) &&

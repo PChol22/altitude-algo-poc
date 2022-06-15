@@ -23,6 +23,7 @@ export type TotalThreshold = {
 
 export const add = (a: number[], b: number[]) => a.map((v, i) => v + b[i]);
 export const equals = (a: number[], b: number[]) => a.every((v, i) => v === b[i]);
+const positiveModulo = (a: number, b: number) => ((a % b) + b) % b;
 
 // Returns flattened table (i,j,value)[]
 const getFlatTable = (table: Table): FlatTable =>
@@ -82,7 +83,6 @@ const getNewFixedTableCells = (linesFixedBySubtotals: FixedSubTotal[], threshold
   linesFixedBySubtotals.filter((line) => line.i === threshold.line.i && line.j === threshold.line.j)[0].cells;
 
 // Get the updated value of the table (Whole number only)
-// TODO - Fix bug with remainders, subtotals sometimes dont add up
 const getUpdatedTable = (oldTable: Table, editableCells: TableCell[], threshold: Threshold | TotalThreshold): Table => {
   let remainderBuffer = 0;
   return oldTable.map((row, y) => row.map((cell, x) => {
@@ -101,6 +101,11 @@ const getUpdatedTable = (oldTable: Table, editableCells: TableCell[], threshold:
 const getUpdatedEditableCells = (editableCells: TableCell[], newFixedTableCells: TableCell[]): TableCell[] =>
   editableCells.filter((cell) => !cellsIncludeCell(newFixedTableCells, cell));
 
+const isTableNegative = (table: Table): boolean =>
+getFlatTable(table).some(({ value }) => value === undefined || value < 0);
+
+const checkSubTotals = (subtotalLine: TableLine, originalSubTotalLine: TableLine): boolean => 
+    originalSubTotalLine.every((value, index) => value === 0 || subtotalLine[index] === value);
   
 export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow: TableLine, total: number) => {
   let tableCopy = table.map(row => row.map(cell => cell));
@@ -118,33 +123,46 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
     const nextThreshold = getNextSubTotalReached(linesFixedBySubtotals);
 
     // TODO : Check if really necessary ?
-    if (nextThreshold.delta < 0) throw { msg: "Impossible split", nextThreshold};
+    if (nextThreshold.delta < 0) throw { msg: "Impossible split" };
 
     tableCopy = getUpdatedTable(tableCopy, editableCells, nextThreshold);
 
     const newFixedTableCells = getNewFixedTableCells(linesFixedBySubtotals, nextThreshold);
 
-    linesFixedBySubtotals = getUpdatedLinesFixedBySubTotals(linesFixedBySubtotals, flatTable, editableCells, nextThreshold);
-
     flatTable = getFlatTable(tableCopy);
     editableCells = getUpdatedEditableCells(editableCells, newFixedTableCells);
-  }
 
-  const newTotal = flatTable.reduce((p,c) => p + (c.value ?? 0), 0);
-  if (editableCells.length === 0 && newTotal != total) throw { msg: "Impossible split", editableCells };
+    linesFixedBySubtotals = getUpdatedLinesFixedBySubTotals(linesFixedBySubtotals, flatTable, editableCells, nextThreshold);
+
+  }
 
   // After all subtotal conditions have been verified, we either increase or decrease the last free cells to reach global total
-  // There's maybe a check to do if some values of the table end up negative (No problem if delta < 0 thought)
-  const totalThreshold = {
-    delta: (total - newTotal) / editableCells.length,
-    deltaRemainder: (total - newTotal) % editableCells.length,
+  const newTotal = flatTable.reduce((p,c) => p + (c.value ?? 0), 0);
+  
+  if (editableCells.length > 0) {
+    const totalThreshold = {
+        delta: (total - newTotal) / editableCells.length,
+        deltaRemainder: positiveModulo(total - newTotal, editableCells.length),
+    };
+    tableCopy = getUpdatedTable(tableCopy, editableCells, totalThreshold);
+  } else if (newTotal != total) {
+    throw { msg: "Impossible split" };
   }
 
-  const newTable = getUpdatedTable(tableCopy, editableCells, totalThreshold);
+  if (isTableNegative(tableCopy)) {
+    throw { msg: "Impossible split" };
+  }
+
+  const newSubtotalsByColumn = tableCopy.reduce((prv, cur) => add(prv, cur), new Array(tableCopy[0].length).fill(0));
+  const newSubtotalsByRow = tableCopy.map(row => row.reduce((prv, cur) => prv + cur), 0);
+
+  if (!checkSubTotals(newSubtotalsByColumn, subTotalsByColumn) || !checkSubTotals(newSubtotalsByRow, subTotalsByRow)) {
+      throw { msg: "Impossible split" };
+  }
 
   return {
-    newTable,
-    newSubtotalsByColumn: newTable.reduce((prv, cur) => add(prv, cur), new Array(tableCopy[0].length).fill(0)),
-    newSubtotalsByRow: newTable.map(row => row.reduce((prv, cur) => prv + cur), 0),
+    newTable: tableCopy,
+    newSubtotalsByColumn,
+    newSubtotalsByRow,
   };
 }
