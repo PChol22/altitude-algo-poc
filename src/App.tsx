@@ -69,16 +69,16 @@ function App() {
     <Box>
       <Grid container>
         {table.map((row, i) => (
-          <Grid container item>
+          <Grid container item key={i}>
             {
-              row.map((_, j) => <Grid item><TextField value={table[i][j]} onChange={(e) => updateTable(i, j, e.target.value)}></TextField></Grid>)
+              row.map((_, j) => <Grid item key={j}><TextField value={table[i][j]} onChange={(e) => updateTable(i, j, e.target.value)}></TextField></Grid>)
             }
             <Grid item marginLeft={1}><TextField value={totalsCol[i]} onChange={(e) => updateTotalsCol(i, e.target.value)}></TextField></Grid>
           </Grid>
         ))}
         <Grid container item marginTop={1}>
           {
-            totalsRow.map((_, j) => <Grid item><TextField value={totalsRow[j]} onChange={(e) => updateTotalsRow(j, e.target.value)}></TextField></Grid>)
+            totalsRow.map((_, j) => <Grid item key={j}><TextField value={totalsRow[j]} onChange={(e) => updateTotalsRow(j, e.target.value)}></TextField></Grid>)
           }
           <Grid item marginLeft={1}><TextField value={total} onChange={(e) => updateTotal(e.target.value)}></TextField></Grid>
         </Grid>
