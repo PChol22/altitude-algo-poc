@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { equals, add, split } from './split';
 
-const initialTable = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
-const initialTotalsRow = [0, 0, 0, 0, 0];
-const initialTotalsCol = [0, 0, 0];
-const initialTotal = 100000;
+const initialTable = [[0, 0], [0, 0], [0, 0]];
+const initialTotalsRow = [100000, 320000];
+const initialTotalsCol = [300000, 120000, 0];
+const initialTotal = 420000;
 
 function isNumeric(str: string) {
   if (typeof str != "string") return false // we only process strings!  
