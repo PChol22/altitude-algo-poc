@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { equals, add, split } from './split';
 
-const initialTable = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
-const initialTotalsRow = [0, 0, 0, 0, 0];
+const initialTable = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+const initialTotalsRow = [0, 0, 0, 0];
 const initialTotalsCol = [0, 0, 0];
 const initialTotal = 100000;
 

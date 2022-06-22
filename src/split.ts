@@ -158,8 +158,8 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
       const row = arrangedTable[i];
       const column = arrangedTable.map(row => row[j]);
       if (row.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByRow[i].value &&
-          column.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByColumn[j].value &&
-          arrangedTableCopy[i][j].value === 0) {
+          column.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByColumn[j].value/* &&
+          arrangedTableCopy[i][j].value === 0*/) {
         arrangedTable[i][j].value++;
       }
     }
@@ -172,7 +172,6 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
 export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow: TableLine, total: number) => {
   let tableCopy = table.map(row => row.map(cell => cell));
   let flatTable = getFlatTable(table);
-  let editableCells = getEditableCells(flatTable);
 
   const tableWithIndexes = tableCopy.map((row, i) => row.map((value, j) => ({ value, i, j})));
   const arrangedTable = tableWithIndexes.filter((_, i) => subTotalsByRow[i] > 0).map(row => row.filter((_, j) => subTotalsByColumn[j] > 0));
@@ -190,10 +189,57 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
   
   const newTable = tableCopy.map((row, i) => row.map((cell, j) => flatCompletedArrangedTable.find(c => c.i === i && c.j === j)?.value ?? cell))
 
-  
+  subTotalsByColumn.forEach((subtotal, j) => {
+    if (subtotal === 0) return;
+    const freeCells = subTotalsByRow.map((sub, i) => ({ sub, i})).filter(({sub}) => sub === 0);
+    if (freeCells.length === 0) return;
+    const delta = Math.floor((subtotal - newTable.map(row => row[j]).reduce((p,c) => p + c, 0)) / freeCells.length);
+    freeCells.forEach((y) => newTable[y.i][j] += delta);
+    freeCells.forEach((y) => {
+      if (newTable.map(row => row[j]).reduce((p,c) => p + c, 0) < subtotal) newTable[y.i][j]++;
+    });
+  });
+
+  subTotalsByRow.forEach((subtotal, i) => {
+    if (subtotal === 0) return;
+    const freeCells = subTotalsByColumn.map((sub, j) => ({ sub, j})).filter(({sub}) => sub === 0);
+    console.log(freeCells);
+    if (freeCells.length === 0) return;
+    const delta = Math.floor((subtotal - newTable[i].reduce((p,c) => p + c, 0)) / freeCells.length);
+    freeCells.forEach((x) => newTable[i][x.j] += delta);
+    freeCells.forEach((x) => {
+      if (newTable[i].reduce((p,c) => p + c, 0) < subtotal) newTable[i][x.j]++;
+    });
+  });
+
+  const flatNewTable = getFlatTable(newTable);
+  const remaining = total - flatNewTable.reduce((p,c) => p + (c.value ?? 0), 0);
+  const editableCells = flatNewTable.filter(({i,j}) => subTotalsByColumn[j] === 0 && subTotalsByRow[i] === 0);
+  if (remaining > 0 && editableCells.length === 0) {
+    throw "impossible split";
+  }
+  const delta = remaining / editableCells.length;
+  const deltaRemainder = remaining % editableCells.length;
+
+  editableCells.forEach(({i,j}) => newTable[i][j] += Math.floor(delta));
+  editableCells.forEach(({i,j}, index) => {
+    if (index < deltaRemainder) newTable[i][j] ++;
+  });
+
+  const newSubtotalsByColumn = newTable.reduce((p,c) => add(p,c), new Array(newTable[0].length).fill(0));
+  const newSubtotalsByRow = newTable.map(row => row.reduce((p,c) => p + c), 0);
+
+  if (isTableNegative(newTable)) {
+    throw "impossible split";
+  }
+
+  if (!checkSubTotals(newSubtotalsByColumn, subTotalsByColumn) || !checkSubTotals(newSubtotalsByRow, subTotalsByRow)) {
+    throw "impossible split";
+  }
+
   return {
     newTable,
-    newSubtotalsByColumn: subTotalsByColumn,
-    newSubtotalsByRow: subTotalsByRow,
+    newSubtotalsByColumn,
+    newSubtotalsByRow,
   };
 }
