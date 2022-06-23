@@ -1,4 +1,4 @@
-import { Box, Button, Grid, TextField } from '@mui/material';
+import { Box, Button, Grid, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import './App.css';
 import { equals, add, split } from './split';
@@ -83,8 +83,16 @@ function App() {
           <Grid item marginLeft={1}><TextField value={total} onChange={(e) => updateTotal(e.target.value)}></TextField></Grid>
         </Grid>
       </Grid>
-      <Button onClick={splitTable} variant="outlined">Split</Button>
-      {consistency ? <h3>✅</h3> : <h3>❌</h3>}
+      {consistency ? <Typography color="green" marginY={2}>CONSISTENT ✅</Typography> : <Typography marginY={2} color="red">NOT CONSISTENT ❌</Typography>}
+      <Box display="flex" flexDirection="row" gap={1} margin={1}>
+        <Button onClick={splitTable} variant="contained">Split</Button>
+        <Button variant='outlined' onClick={() => {setTable([...table, new Array(table[0].length).fill(0)]); setTotalsCol([...totalsCol, 0])}}>Add row</Button>
+        <Button variant='outlined' onClick={() => {setTable(table.filter((_,i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_,i) => i < table.length - 1))}}>Remove row</Button>
+        <Button variant='outlined' onClick={() => {setTable(table.map(row => [...row, 0])); setTotalsRow([...totalsRow, 0])}}>Add column</Button>
+        <Button variant='outlined' onClick={() => {setTable(table.map(row => row.filter((_, j) => j < table[0].length - 1))); setTotalsRow(totalsRow.filter((_,j) => j < table[0].length - 1))}}>Remove column</Button>
+        <Button variant='outlined' onClick={() => {setTable(new Array(table.length).fill(new Array(table[0].length).fill(0)))}}>Clean cells</Button>
+        <Button variant='outlined' onClick={() => {setTotalsCol(new Array(table.length).fill(0)); setTotalsRow(new Array(table[0].length).fill(0))}}>Clean subtotals</Button>
+      </Box>
     </Box>
   );
 }
