@@ -113,7 +113,7 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
   const subTotalsByRowTotal = arrangedSubTotalsByRow.reduce((p,c) => p + c.value, 0);
 
   const arrangedTableCopy = arrangedTable.map(row => row.map(col => col));
-
+  // TODO - Good repartition of subtotals
   let proportionalsubTotalsByColumn = arrangedSubTotalsByColumn;
 
   if (subTotalsByColumnTotal > subTotalsByRowTotal) {
@@ -137,34 +137,48 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
   console.log({ proportionalsubTotalsByColumn, proportionalsubTotalsByRow, subTotalsByColumnTotal, subTotalsByRowTotal });
 
   for (let i = 0; i < arrangedTable.length; i++) {
-    arrangedTable[i] = arrangedTable[i].map((cell, j) => {
-      if (cell.value > 0) return cell;
-      const remaining = proportionalsubTotalsByRow[i].value - arrangedTable[i].reduce((p,c) => p + c.value, 0);
-      const total = Math.min(subTotalsByRowTotal, subTotalsByColumnTotal);
+    for (let j = 0; j < arrangedTable[0].length; j++) {
+      const cell = arrangedTable[i][j];
+      if (cell.value > 0) continue;
+
       const column = arrangedTable.map(row => row[j]);
+      if (column.every((c, y) => c.value > 0 || y === i)) {
+        arrangedTable[i][j] = { ...cell, value : proportionalsubTotalsByColumn[j].value -  column.reduce((p,c) => p+c.value, 0)};
+        continue;
+      }
+
+      if (arrangedTable[i].every((c, x) => c.value > 0 || x === j)) {
+        arrangedTable[i][j] = { ...cell, value : proportionalsubTotalsByRow[i].value -  arrangedTable[i].reduce((p,c) => p+c.value, 0)};
+        continue;
+      }
+      
+
+      const remaining = proportionalsubTotalsByRow[i].value - arrangedTable[i].reduce((p,c) => p + c.value, 0);
+      
+      const total = Math.min(subTotalsByRowTotal, subTotalsByColumnTotal);
 
       const columnUpdatedSubtotal =  proportionalsubTotalsByColumn[j].value - column.reduce((p,c) => p + c.value, 0);
-      const updatedTotal = total - proportionalsubTotalsByColumn.filter((_,x) => arrangedTable[i][x].value > 0).reduce((p,c) => p+c.value,0) - arrangedTable.reduce((pr,cr) => pr + cr.reduce((p,c,x) => arrangedTable[i][x].value > 0 ? p : p + c.value, 0), 0);
-      return {
+      const updatedTotal = total //- proportionalsubTotalsByColumn.filter((_,x) => arrangedTable[i][x].value > 0).reduce((p,c) => p+c.value,0) - arrangedTable.reduce((pr,cr) => pr + cr.reduce((p,c,x) => arrangedTable[i][x].value > 0 ? p : p + c.value, 0), 0);
+      console.log({ remaining, total, columnUpdatedSubtotal, updatedTotal });
+      arrangedTable[i][j] = {
         ...cell,
         value: Math.floor(remaining * columnUpdatedSubtotal / updatedTotal),
-      }
-    });
+      };
+    }
   }
-  //console.table(arrangedTable.map(row => row.map(({value}) => value)));
     
-  for (let i = 0; i < arrangedTable.length; i++) {
+  /*for (let i = 0; i < arrangedTable.length; i++) {
     for (let j = 0; j < arrangedTable[0].length; j++) {
       const row = arrangedTable[i];
       const column = arrangedTable.map(row => row[j]);
       if (row.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByRow[i].value &&
-          column.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByColumn[j].value/* &&
-          arrangedTableCopy[i][j].value === 0*/) {
+          column.reduce((p,c) => p + c.value, 0) < proportionalsubTotalsByColumn[j].value &&
+          arrangedTableCopy[i][j].value === 0) {
         arrangedTable[i][j].value++;
       }
     }
-  }
-  //console.table(arrangedTable.map(row => row.map(({value}) => value)));
+  }*/
+  console.table(arrangedTable.map(row => row.map(({value}) => value)));
 
   return arrangedTable;
 }
@@ -179,13 +193,10 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
   const arrangedSubTotalsByColumn = subTotalsByColumn.map((value, j) => ({ value: value - flatTable.reduce((p,c) => c.j === j && subTotalsByRow[c.i] === 0 ? p + (c.value ?? 0 ) : p, 0), j })).filter(({ value }) => value > 0);
   const arrangedSubTotalsByRow = subTotalsByRow.map((value, i) => ({ value: value - flatTable.reduce((p,c) => c.i === i && subTotalsByColumn[c.j] === 0 ? p + (c.value ?? 0 ) : p, 0), i })).filter(({ value }) => value > 0);
 
-  // console.log({ arrangedSubTotalsByColumn, arrangedSubTotalsByRow, arrangedTable });
 
   const completedArrangedTable = computeCompletedArrangedTable(arrangedTable, arrangedSubTotalsByColumn, arrangedSubTotalsByRow);
-  console.log(completedArrangedTable);
 
   const flatCompletedArrangedTable = completedArrangedTable.flatMap(row => row);
-  console.log(flatCompletedArrangedTable);
   
   const newTable = tableCopy.map((row, i) => row.map((cell, j) => flatCompletedArrangedTable.find(c => c.i === i && c.j === j)?.value ?? cell))
 
@@ -203,7 +214,6 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
   subTotalsByRow.forEach((subtotal, i) => {
     if (subtotal === 0) return;
     const freeCells = subTotalsByColumn.map((sub, j) => ({ sub, j})).filter(({sub}) => sub === 0);
-    console.log(freeCells);
     if (freeCells.length === 0) return;
     const delta = Math.floor((subtotal - newTable[i].reduce((p,c) => p + c, 0)) / freeCells.length);
     freeCells.forEach((x) => newTable[i][x.j] += delta);
@@ -238,8 +248,8 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
   }
 
   return {
-    newTable,
-    newSubtotalsByColumn,
-    newSubtotalsByRow,
+    newTable: newTable,
+    newSubtotalsByColumn: newSubtotalsByColumn,
+    newSubtotalsByRow: newSubtotalsByRow,
   };
 }
