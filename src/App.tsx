@@ -59,10 +59,15 @@ function App() {
   useEffect(checkConsistency, [table, totalsCol, totalsRow, total]);
 
   const splitTable = () => {
-    const { newTable, newSubtotalsByColumn, newSubtotalsByRow } = split(table, totalsRow, totalsCol, total);
-    setTable(newTable);
-    setTotalsRow(newSubtotalsByColumn);
-    setTotalsCol(newSubtotalsByRow);
+    try {
+      const { newTable, newSubtotalsByColumn, newSubtotalsByRow } = split(table, totalsRow, totalsCol, total);
+      setTable(newTable);
+      setTotalsRow(newSubtotalsByColumn);
+      setTotalsCol(newSubtotalsByRow);
+    } catch (e) {
+      console.error(e);
+      alert("Impossible Split (or Algo Failed?)");
+    }
   }
 
   return (
@@ -87,9 +92,9 @@ function App() {
       <Box display="flex" flexDirection="row" gap={1} margin={1}>
         <Button onClick={splitTable} variant="contained">Split</Button>
         <Button variant='outlined' onClick={() => {setTable([...table, new Array(table[0].length).fill(0)]); setTotalsCol([...totalsCol, 0])}}>Add row</Button>
-        <Button variant='outlined' onClick={() => {setTable(table.filter((_,i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_,i) => i < table.length - 1))}}>Remove row</Button>
+        <Button variant='outlined' onClick={() => {setTable(table.filter((_,i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_,i) => i < table.length - 1))}} disabled={table.length < 2}>Remove row</Button>
         <Button variant='outlined' onClick={() => {setTable(table.map(row => [...row, 0])); setTotalsRow([...totalsRow, 0])}}>Add column</Button>
-        <Button variant='outlined' onClick={() => {setTable(table.map(row => row.filter((_, j) => j < table[0].length - 1))); setTotalsRow(totalsRow.filter((_,j) => j < table[0].length - 1))}}>Remove column</Button>
+        <Button variant='outlined' onClick={() => {setTable(table.map(row => row.filter((_, j) => j < table[0].length - 1))); setTotalsRow(totalsRow.filter((_,j) => j < table[0].length - 1))}} disabled={table[0].length < 2}>Remove column</Button>
         <Button variant='outlined' onClick={() => {setTable(new Array(table.length).fill(new Array(table[0].length).fill(0)))}}>Clean cells</Button>
         <Button variant='outlined' onClick={() => {setTotalsCol(new Array(table.length).fill(0)); setTotalsRow(new Array(table[0].length).fill(0))}}>Clean subtotals</Button>
       </Box>

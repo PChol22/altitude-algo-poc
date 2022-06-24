@@ -157,16 +157,32 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
       if (cell.value > 0) continue;
 
       const column = arrangedTable.map(row => row[j]);
+      let fillByColumn = Number.POSITIVE_INFINITY;
+      let fillByRow = Number.POSITIVE_INFINITY;
+
       if (column.every((c, y) => c.value > 0 || y === i)) {
-        arrangedTable[i][j] = { ...cell, value : proportionalsubTotalsByColumn[j] -  column.reduce((p,c) => p+c.value, 0)};
-        continue;
+        fillByColumn = proportionalsubTotalsByColumn[j] -  column.reduce((p,c) => p+c.value, 0);
       }
 
       if (arrangedTable[i].every((c, x) => c.value > 0 || x === j)) {
-        arrangedTable[i][j] = { ...cell, value : proportionalsubTotalsByRow[i] -  arrangedTable[i].reduce((p,c) => p+c.value, 0)};
+        fillByRow = proportionalsubTotalsByRow[i] -  arrangedTable[i].reduce((p,c) => p+c.value, 0);
+      }
+
+      if (fillByColumn <= fillByRow && fillByColumn < Number.POSITIVE_INFINITY) {
+        arrangedTable[i][j] = {
+          ...cell,
+          value: fillByColumn,
+        };
         continue;
       }
-      
+
+      if (fillByRow < Number.POSITIVE_INFINITY) {
+        arrangedTable[i][j] = {
+          ...cell,
+          value: fillByRow,
+        };
+        continue;
+      }
 
       const remaining = proportionalsubTotalsByRow[i] - arrangedTable[i].reduce((p,c) => p + c.value, 0);
       
@@ -198,6 +214,9 @@ const computeCompletedArrangedTable = (arrangedTable: { value: number, i: number
   return arrangedTable;
 }
 
+const checkCells = (newTable: Table, oldTable: Table): boolean =>
+  oldTable.every((row, i) => row.every((value, j) => value === 0 || value === newTable[i][j]));
+
 export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow: TableLine, total: number) => {
   let tableCopy = table.map(row => row.map(cell => cell));
   let flatTable = getFlatTable(table);
@@ -217,7 +236,7 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
 
   subTotalsByColumn.forEach((subtotal, j) => {
     if (subtotal === 0) return;
-    const freeCells = subTotalsByRow.map((sub, i) => ({ sub, i})).filter(({sub}) => sub === 0);
+    const freeCells = subTotalsByRow.map((sub, i) => ({ sub, i})).filter(({sub, i }) => sub === 0 && table[i][j] === 0);
     if (freeCells.length === 0) return;
     const delta = Math.floor((subtotal - newTable.map(row => row[j]).reduce((p,c) => p + c, 0)) / freeCells.length);
     freeCells.forEach((y) => newTable[y.i][j] += delta);
@@ -228,7 +247,7 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
 
   subTotalsByRow.forEach((subtotal, i) => {
     if (subtotal === 0) return;
-    const freeCells = subTotalsByColumn.map((sub, j) => ({ sub, j})).filter(({sub}) => sub === 0);
+    const freeCells = subTotalsByColumn.map((sub, j) => ({ sub, j})).filter(({sub, j}) => sub === 0 && table[i][j] === 0);
     if (freeCells.length === 0) return;
     const delta = Math.floor((subtotal - newTable[i].reduce((p,c) => p + c, 0)) / freeCells.length);
     freeCells.forEach((x) => newTable[i][x.j] += delta);
@@ -239,9 +258,9 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
 
   const flatNewTable = getFlatTable(newTable);
   const remaining = total - flatNewTable.reduce((p,c) => p + (c.value ?? 0), 0);
-  const editableCells = flatNewTable.filter(({i,j}) => subTotalsByColumn[j] === 0 && subTotalsByRow[i] === 0);
+  const editableCells = flatNewTable.filter(({i,j}) => subTotalsByColumn[j] === 0 && subTotalsByRow[i] === 0 && table[i][j] === 0);
   if (remaining > 0 && editableCells.length === 0) {
-    throw "impossible split";
+    throw "impossible split, total not reached but no more free cells";
   }
   const delta = remaining / editableCells.length;
   const deltaRemainder = remaining % editableCells.length;
@@ -255,11 +274,15 @@ export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow
   const newSubtotalsByRow = newTable.map(row => row.reduce((p,c) => p + c), 0);
 
   if (isTableNegative(newTable)) {
-    throw "impossible split";
+    throw "impossible split, negative values";
   }
 
   if (!checkSubTotals(newSubtotalsByColumn, subTotalsByColumn) || !checkSubTotals(newSubtotalsByRow, subTotalsByRow)) {
-    throw "impossible split";
+    throw "impossible split, some user-defined subtotals have changed";
+  }
+
+  if (!checkCells(newTable, table)) {
+    throw "impossible split, some user-defined cells have changed";
   }
 
   return {
