@@ -1,6 +1,6 @@
 import { Box, Button, Grid, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { equals, add, split } from './split';
+import { equals, add, split, sum } from './split';
 
 const initialTable = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
 const initialTotalsRow = [0, 0, 0, 0];
@@ -69,6 +69,13 @@ function App() {
     }
   }
 
+  const canSplitTable = () => {
+    const areSubTotalsOK = sum(totalsRow) <= total && sum(totalsCol) <= total;
+    const areCellsOK = totalsRow.every((subtotal, j) => subtotal === 0 || subtotal >= sum(table.map(row => row[j]))) &&
+      totalsCol.every((subtotal, i ) => subtotal === 0 || subtotal >= sum(table[i]));
+    return areSubTotalsOK && areCellsOK;
+  }
+
   return (
     <Box padding={1}>
       <Grid container>
@@ -89,7 +96,7 @@ function App() {
       </Grid>
       {consistency ? <Typography color="green" marginY={2}>CONSISTENT ✅</Typography> : <Typography marginY={2} color="red">NOT CONSISTENT ❌</Typography>}
       <Box display="flex" flexDirection="row" gap={1} margin={1}>
-        <Button onClick={splitTable} variant="contained">Split</Button>
+        <Button onClick={splitTable} variant="contained" disabled={!canSplitTable()}>Split</Button>
         <Button variant='outlined' onClick={() => {setTable([...table, new Array(table[0].length).fill(0)]); setTotalsCol([...totalsCol, 0])}}>Add row</Button>
         <Button variant='outlined' onClick={() => {setTable(table.filter((_,i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_,i) => i < table.length - 1))}} disabled={table.length < 2}>Remove row</Button>
         <Button variant='outlined' onClick={() => {setTable(table.map(row => [...row, 0])); setTotalsRow([...totalsRow, 0])}}>Add column</Button>
