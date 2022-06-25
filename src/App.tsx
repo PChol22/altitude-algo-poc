@@ -1,12 +1,11 @@
 import { Box, Button, Grid, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import './App.css';
 import { equals, add, split } from './split';
 
 const initialTable = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
 const initialTotalsRow = [0, 0, 0, 0];
 const initialTotalsCol = [0, 0, 0];
-const initialTotal = 100000;
+const initialTotal = 1000;
 
 function isNumeric(str: string) {
   if (typeof str != "string") return false // we only process strings!  
@@ -71,7 +70,7 @@ function App() {
   }
 
   return (
-    <Box>
+    <Box padding={1}>
       <Grid container>
         {table.map((row, i) => (
           <Grid container item key={i}>
