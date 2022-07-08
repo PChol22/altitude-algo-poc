@@ -1,167 +1,109 @@
-import { TableCell } from "@mui/material";
-
 export type TableLine = number[];
 export type Table = number[][];
-export type TableCell = { i: number, j: number, value?: number, fixed?: boolean };
-export type FlatTable = TableCell[];
-export type FixedSubTotal = {
-  subTotal: number,
-  i: number,
-  j: number,
-  cells: TableCell[]
-};
-export type Threshold = {
-  line: FixedSubTotal,
-  delta: number,
-  deltaRemainder: number,
-};
-export type TotalThreshold = {
-  delta: number,
-  deltaRemainder: number,
-};
-
 
 export const add = (a: number[], b: number[]) => a.map((v, i) => v + b[i]);
 export const equals = (a: number[], b: number[]) => a.every((v, i) => v === b[i]);
-const positiveModulo = (a: number, b: number) => ((a % b) + b) % b;
-
-// Returns flattened table (i,j,value)[]
-const getFlatTable = (table: Table): FlatTable =>
-  table
-    .flatMap((row, i) => row.flatMap((value, j) => ({ value, i, j })));
-
-// Returns table cells that are editable by the algorithm
-const getEditableCells = (flatTable: FlatTable): TableCell[] =>
-  flatTable.filter(({ value }) => value === 0);
-
-// Is a cell part of a cells set
-const cellsIncludeCell = (cells: TableCell[], cell: TableCell): boolean =>
-    cells.filter(({ i, j }) => i === cell.i && j === cell.j).length > 0;
-
-// Returns subtotals fixed by the user, with info on their location (Column : i = -1, Line : j = -1)
-// Each subtotal line has cells that belong to it, each cell know its value and status (fixed or free)
-const getLinesFixedBySubTotal = (flatTable: FlatTable, subTotalsByLine: TableLine, editableCells: TableCell[], column: boolean): FixedSubTotal[] =>
-  subTotalsByLine.map((subTotal, index) => ({
-    subTotal,
-    i: column ? -1 : index,
-    j: column ? index : -1,
-    cells: flatTable
-      .filter(cell => (column && cell.j === index) || (!column && cell.i === index))
-      .map(cell => ({ ...cell, fixed: !cellsIncludeCell(editableCells, cell) }))
-  })).filter(({ subTotal }) => subTotal > 0);
-  
-// Updates subtotals that cannot be changed anymore and their info (cells value and status)
-const getUpdatedLinesFixedBySubTotals = (linesFixedBySubtotals: FixedSubTotal[], flatTable: FlatTable, editableCells: TableCell[], threshold: Threshold): FixedSubTotal[] =>
-  linesFixedBySubtotals.map(lineFixedBySubtotal => ({
-    ...lineFixedBySubtotal,
-    cells: flatTable
-      .filter(cell => lineFixedBySubtotal.i === -1 ? (lineFixedBySubtotal.j === cell.j) : (lineFixedBySubtotal.i === cell.i))
-      .map(cell => ({ ...cell, fixed: !cellsIncludeCell(editableCells, cell) }))
-  })).filter(line => line.i !== threshold.line.i || line.j !== threshold.line.j);
-
-// Get free cells from the cells of a subtotal line
-const getLineFreeCells = (line: FixedSubTotal): TableCell[] =>
-  line.cells.filter(cell => cell.fixed === false);
-
-// Compute updated subtotal of a subtotal line (after cells values have changed)
-const computeLineSubtotal = (line: FixedSubTotal): number => line.cells.reduce((p,c) => p + (c.value ?? 0), 0);
-
-// Get next first subtotal line who's subtotal will be reached if we increase free cells value by 'delta'
-const getNextSubTotalReached = (linesFixedBySubtotals: FixedSubTotal[]): Threshold =>
-  linesFixedBySubtotals
-    .map(line => ({
-        line,
-        delta: getLineFreeCells(line).length > 0 ? (line.subTotal - computeLineSubtotal(line)) / getLineFreeCells(line).length : 0,
-        deltaRemainder: getLineFreeCells(line).length > 0 ? (line.subTotal - computeLineSubtotal(line)) % getLineFreeCells(line).length : 0,
-    }))
-    // length is > 0 by definition (while loop)
-    .sort((threshold1, threshold2) => threshold1.delta - threshold2.delta)[0];
-
-// Get table cells that have become fixed after a subtotal has been reached
-// length is > 0 by definition (threshold is a member of linesFixedBySubtotals)
-const getNewFixedTableCells = (linesFixedBySubtotals: FixedSubTotal[], threshold: Threshold): TableCell[] =>
-  linesFixedBySubtotals.filter((line) => line.i === threshold.line.i && line.j === threshold.line.j)[0].cells;
-
-// Get the updated value of the table (Whole number only)
-const getUpdatedTable = (oldTable: Table, editableCells: TableCell[], threshold: Threshold | TotalThreshold): Table => {
-  let remainderBuffer = 0;
-  return oldTable.map((row, y) => row.map((cell, x) => {
-    const tableCell = { i:y, j:x };
-    if (!cellsIncludeCell(editableCells, tableCell)) return cell;
-
-    const result = cell + Math.floor(threshold.delta);
-    if ('line' in threshold && !cellsIncludeCell(threshold.line.cells, tableCell)) return result;
-
-    remainderBuffer += 1;
-    return (remainderBuffer <= threshold.deltaRemainder ? result + 1 : result);
-  }));
-};
-
-// Update table cells that can still be edited by the algorithm
-const getUpdatedEditableCells = (editableCells: TableCell[], newFixedTableCells: TableCell[]): TableCell[] =>
-  editableCells.filter((cell) => !cellsIncludeCell(newFixedTableCells, cell));
+export const sum = (a: number[]) => a.reduce((p,c) => p+c, 0);
+export const valueSum = (a: { value: number }[]) => a.reduce((p,c) => p+c.value, 0);
 
 const isTableNegative = (table: Table): boolean =>
-getFlatTable(table).some(({ value }) => value === undefined || value < 0);
+  table.some(row => row.some(value => value < 0));
 
 const checkSubTotals = (subtotalLine: TableLine, originalSubTotalLine: TableLine): boolean => 
-    originalSubTotalLine.every((value, index) => value === 0 || subtotalLine[index] === value);
-  
+  originalSubTotalLine.every((value, index) => value === 0 || subtotalLine[index] === value);
+
+const checkCells = (newTable: Table, oldTable: Table): boolean =>
+  oldTable.every((row, i) => row.every((value, j) => value === 0 || value === newTable[i][j]));
+
+const checkSubTotalConsistency = (newTable: Table, subTotalsByColumn: TableLine, subTotalsByRow: TableLine): boolean =>
+  subTotalsByRow.every((subtotal, i) => sum(newTable[i]) === subtotal) &&
+  subTotalsByColumn.every((subtotal, j) => sum(newTable.map(row => row[j])) === subtotal);
+
 export const split = (table: Table, subTotalsByColumn: TableLine, subTotalsByRow: TableLine, total: number) => {
-  let tableCopy = table.map(row => row.map(cell => cell));
-  let flatTable = getFlatTable(table);
-  let editableCells = getEditableCells(flatTable);
-
-  let linesFixedBySubtotals = [
-    ...getLinesFixedBySubTotal(flatTable, subTotalsByColumn, editableCells, true),
-    ...getLinesFixedBySubTotal(flatTable, subTotalsByRow, editableCells, false),
-  ];
-
-  // Theoretically ends (array length is strictly decreasing)
-  while (linesFixedBySubtotals.length > 0) {
-    
-    const nextThreshold = getNextSubTotalReached(linesFixedBySubtotals);
-
-    // TODO : Check if really necessary ?
-    if (nextThreshold.delta < 0) throw { msg: "Impossible split" };
-
-    tableCopy = getUpdatedTable(tableCopy, editableCells, nextThreshold);
-
-    const newFixedTableCells = getNewFixedTableCells(linesFixedBySubtotals, nextThreshold);
-
-    flatTable = getFlatTable(tableCopy);
-    editableCells = getUpdatedEditableCells(editableCells, newFixedTableCells);
-
-    linesFixedBySubtotals = getUpdatedLinesFixedBySubTotals(linesFixedBySubtotals, flatTable, editableCells, nextThreshold);
-
-  }
-
-  // After all subtotal conditions have been verified, we either increase or decrease the last free cells to reach global total
-  const newTotal = flatTable.reduce((p,c) => p + (c.value ?? 0), 0);
   
-  if (editableCells.length > 0) {
-    const totalThreshold = {
-        delta: (total - newTotal) / editableCells.length,
-        deltaRemainder: positiveModulo(total - newTotal, editableCells.length),
-    };
-    tableCopy = getUpdatedTable(tableCopy, editableCells, totalThreshold);
-  } else if (newTotal != total) {
-    throw { msg: "Impossible split" };
-  }
+  const missingSubtotalsByColumn = subTotalsByColumn
+    .map((value, j) => ({ value, j }))
+    .filter(({ value }) => value === 0)
+    .map(({ value, j }) => ({ value: value + sum(table.map(row => row[j])), j }));
+  const missingSubtotalsByRow = subTotalsByRow
+    .map((value, i) => ({ value, i }))
+    .filter(({ value }) => value === 0)
+    .map(({ value, i }) => ({ value: value + sum(table[i]), i }));
 
-  if (isTableNegative(tableCopy)) {
-    throw { msg: "Impossible split" };
-  }
+  const remainingSubtotalsByColumn = total - sum(subTotalsByColumn) - valueSum(missingSubtotalsByColumn);
+  const remainingSubtotalsByRow = total - sum(subTotalsByRow) - valueSum(missingSubtotalsByRow);
 
-  const newSubtotalsByColumn = tableCopy.reduce((prv, cur) => add(prv, cur), new Array(tableCopy[0].length).fill(0));
-  const newSubtotalsByRow = tableCopy.map(row => row.reduce((prv, cur) => prv + cur), 0);
+  const subtotalsByColumnDelta = missingSubtotalsByColumn.length > 0 ? Math.floor(remainingSubtotalsByColumn / missingSubtotalsByColumn.length) : 0;
+  const subtotalsByColumnRemainder = missingSubtotalsByColumn.length > 0 ? remainingSubtotalsByColumn % missingSubtotalsByColumn.length : 0;
+  const subtotalsByRowDelta = missingSubtotalsByRow.length > 0 ? Math.floor(remainingSubtotalsByRow / missingSubtotalsByRow.length) : 0;
+  const subtotalsByRowRemainder = missingSubtotalsByRow.length > 0 ? remainingSubtotalsByRow % missingSubtotalsByRow.length : 0;
+
+  const newMissingSubtotalsByColumn = missingSubtotalsByColumn.map(({ value, j }, index) => ({ value: value + subtotalsByColumnDelta + (index < subtotalsByColumnRemainder ? 1 : 0), j }));
+  const newMissingSubtotalsByRow = missingSubtotalsByRow.map(({ value, i }, index) => ({ value: value + subtotalsByRowDelta + (index < subtotalsByRowRemainder ? 1 : 0), i }))
+
+  const newSubtotalsByColumn = subTotalsByColumn.map((value, x) => newMissingSubtotalsByColumn.find(({ j }) => j === x)?.value ?? value);
+  const newSubtotalsByRow = subTotalsByRow.map((value, y) => newMissingSubtotalsByRow.find(({ i }) => i === y)?.value ?? value);
+
+  const newTable = table.map(row => row.map(value => value));
+  
+  for (let i = 0; i < newTable.length; i++) {
+    for (let j = 0; j < newTable[0].length; j++) {
+      const cell = newTable[i][j];
+      if (cell > 0) continue;
+
+      const column = newTable.map(row => row[j]);
+      const row = newTable[i];
+      let fillByColumn = Number.POSITIVE_INFINITY;
+      let fillByRow = Number.POSITIVE_INFINITY;
+
+      if (column.every((c, y) => c > 0 || y === i)) {
+        fillByColumn = newSubtotalsByColumn[j] -  sum(column);
+      }
+
+      if (row.every((c, x) => c > 0 || x === j)) {
+        fillByRow = newSubtotalsByRow[i] -  sum(row);
+      }
+
+      if (fillByColumn <= fillByRow && fillByColumn < Number.POSITIVE_INFINITY) {
+        newTable[i][j] = fillByColumn;
+        continue;
+      }
+
+      if (fillByRow < Number.POSITIVE_INFINITY) {
+        newTable[i][j] = fillByRow;
+        continue;
+      }
+
+      const remainingInRow = newSubtotalsByRow[i] - sum(row);
+      const columSubtotalWithoutFilledCells = newSubtotalsByColumn[j] - sum(column);
+      const totalOfRemainingColumSubtotalWithoutFilledCells = 
+        sum(newSubtotalsByColumn.filter((_,x) => x >= j)) -
+        newTable.reduce((prevTotal, currentRow) => prevTotal + currentRow.reduce((p,c,x) => x >= j ? p + c : p, 0), 0);
+
+      newTable[i][j] = Math.floor(remainingInRow * columSubtotalWithoutFilledCells / totalOfRemainingColumSubtotalWithoutFilledCells);
+    }
+  }
+ 
+  console.table(newTable);
+
+  if (isTableNegative(newTable)) {
+    throw "impossible split, negative values";
+  }
 
   if (!checkSubTotals(newSubtotalsByColumn, subTotalsByColumn) || !checkSubTotals(newSubtotalsByRow, subTotalsByRow)) {
-      throw { msg: "Impossible split" };
+    throw "impossible split, some user-defined subtotals have changed";
+  }
+
+  if (!checkCells(newTable, table)) {
+    throw "impossible split, some user-defined cells have changed";
+  }
+
+  if (!checkSubTotalConsistency(newTable, newSubtotalsByColumn, newSubtotalsByRow)) {
+    throw "impossible split, some subtotals values are inconsistent";
   }
 
   return {
-    newTable: tableCopy,
+    newTable,
     newSubtotalsByColumn,
     newSubtotalsByRow,
   };
