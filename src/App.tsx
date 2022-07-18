@@ -10,7 +10,7 @@ const initialTotal = 1000;
 function isNumeric(str: string) {
   if (typeof str != "string") return false // we only process strings!  
   return !isNaN(+str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-         !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+    !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
 }
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
     const newTotalsCol = totalsCol.map((cell, y) => y === i ? +value : cell);
     setTotalsCol(newTotalsCol);
   };
-  
+
   const updateTotal = (value: string) => {
     if (!isNumeric(value)) return;
     setTotal(+value);
@@ -47,12 +47,12 @@ function App() {
   const checkConsistency = () => {
     const expectedTotalsCol = table.map(row => row.reduce((prv, cur) => prv + cur), 0);
     const expectedTotalsRow = table.reduce((prv, cur) => add(prv, cur), new Array(table[0].length).fill(0));
-    const expectedTotal1 = totalsRow.reduce((p,c) => p+c, 0);
-    const expectedTotal2 = totalsCol.reduce((p,c) => p+c, 0);
+    const expectedTotal1 = totalsRow.reduce((p, c) => p + c, 0);
+    const expectedTotal2 = totalsCol.reduce((p, c) => p + c, 0);
     setConsistency(equals(expectedTotalsCol, totalsCol) &&
-                   equals(expectedTotalsRow, totalsRow) &&
-                          expectedTotal1 === total &&
-                          expectedTotal2 === total);
+      equals(expectedTotalsRow, totalsRow) &&
+      expectedTotal1 === total &&
+      expectedTotal2 === total);
   }
 
   useEffect(checkConsistency, [table, totalsCol, totalsRow, total]);
@@ -65,14 +65,14 @@ function App() {
       setTotalsCol(newSubtotalsByRow);
     } catch (e) {
       console.error(e);
-      alert("Impossible Split (or Algo Failed?)");
+      alert(`Impossible Split (or Algo Failed?)\n${e}`);
     }
   }
 
   const canSplitTable = () => {
     const areSubTotalsOK = sum(totalsRow) <= total && sum(totalsCol) <= total;
     const areCellsOK = totalsRow.every((subtotal, j) => subtotal === 0 || subtotal >= sum(table.map(row => row[j]))) &&
-      totalsCol.every((subtotal, i ) => subtotal === 0 || subtotal >= sum(table[i]));
+      totalsCol.every((subtotal, i) => subtotal === 0 || subtotal >= sum(table[i]));
     return areSubTotalsOK && areCellsOK;
   }
 
@@ -97,16 +97,15 @@ function App() {
       {consistency ? <Typography color="green" marginY={2}>CONSISTENT ✅</Typography> : <Typography marginY={2} color="red">NOT CONSISTENT ❌</Typography>}
       <Box display="flex" flexDirection="row" gap={1} margin={1}>
         <Button onClick={splitTable} variant="contained" disabled={!canSplitTable()}>Split</Button>
-        <Button variant='outlined' onClick={() => {setTable([...table, new Array(table[0].length).fill(0)]); setTotalsCol([...totalsCol, 0])}}>Add row</Button>
-        <Button variant='outlined' onClick={() => {setTable(table.filter((_,i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_,i) => i < table.length - 1))}} disabled={table.length < 2}>Remove row</Button>
-        <Button variant='outlined' onClick={() => {setTable(table.map(row => [...row, 0])); setTotalsRow([...totalsRow, 0])}}>Add column</Button>
-        <Button variant='outlined' onClick={() => {setTable(table.map(row => row.filter((_, j) => j < table[0].length - 1))); setTotalsRow(totalsRow.filter((_,j) => j < table[0].length - 1))}} disabled={table[0].length < 2}>Remove column</Button>
-        <Button variant='outlined' onClick={() => {setTable(new Array(table.length).fill(new Array(table[0].length).fill(0)))}}>Clean cells</Button>
-        <Button variant='outlined' onClick={() => {setTotalsCol(new Array(table.length).fill(0)); setTotalsRow(new Array(table[0].length).fill(0))}}>Clean subtotals</Button>
+        <Button variant='outlined' onClick={() => { setTable([...table, new Array(table[0].length).fill(0)]); setTotalsCol([...totalsCol, 0]) }}>Add row</Button>
+        <Button variant='outlined' onClick={() => { setTable(table.filter((_, i) => i < table.length - 1)); setTotalsCol(totalsCol.filter((_, i) => i < table.length - 1)) }} disabled={table.length < 2}>Remove row</Button>
+        <Button variant='outlined' onClick={() => { setTable(table.map(row => [...row, 0])); setTotalsRow([...totalsRow, 0]) }}>Add column</Button>
+        <Button variant='outlined' onClick={() => { setTable(table.map(row => row.filter((_, j) => j < table[0].length - 1))); setTotalsRow(totalsRow.filter((_, j) => j < table[0].length - 1)) }} disabled={table[0].length < 2}>Remove column</Button>
+        <Button variant='outlined' onClick={() => { setTable(new Array(table.length).fill(new Array(table[0].length).fill(0))) }}>Clean cells</Button>
+        <Button variant='outlined' onClick={() => { setTotalsCol(new Array(table.length).fill(0)); setTotalsRow(new Array(table[0].length).fill(0)) }}>Clean subtotals</Button>
       </Box>
     </Box>
   );
 }
 
 export default App
-   
