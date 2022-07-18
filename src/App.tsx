@@ -1,6 +1,7 @@
 import { Box, Button, Grid, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { equals, add, split, sum } from './split';
+import { split } from './split';
+import { equals, add, sum } from './utils';
 
 const initialTable = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
 const initialTotalsRow = [0, 0, 0, 0];

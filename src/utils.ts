@@ -1,3 +1,10 @@
+export const add = (a: number[], b: number[]) => a.map((v, i) => v + b[i]);
+export const equals = (a: number[], b: number[]) =>
+  a.every((v, i) => v === b[i]);
+export const sum = (a: number[]) => a.reduce((p, c) => p + c, 0);
+export const valueSum = (a: { value: number }[]) =>
+  a.reduce((p, c) => p + c.value, 0);
+
 const swap = (
   mat: number[][],
   row1: number,
